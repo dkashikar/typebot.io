@@ -1,6 +1,5 @@
 import {
   EditablePreview,
-  EditableInput,
   Editable,
   Fade,
   IconButton,
@@ -13,12 +12,13 @@ import {
   Portal,
   useColorModeValue,
   SlideFade,
+  EditableTextarea,
 } from '@chakra-ui/react'
 import { PlusIcon, SettingsIcon } from '@/components/icons'
 import { useTypebot } from '@/features/editor/providers/TypebotProvider'
 import { ButtonItem, Item, ItemIndices } from '@typebot.io/schemas'
 import React, { useRef, useState } from 'react'
-import { isNotDefined } from '@typebot.io/lib'
+import { isEmpty } from '@typebot.io/lib'
 import { useGraph } from '@/features/graph/providers/GraphProvider'
 import { ButtonsItemSettings } from './ButtonsItemSettings'
 import { useTranslate } from '@tolgee/react'
@@ -34,7 +34,10 @@ export const ButtonsItemNode = ({ item, indices, isMouseOver }: Props) => {
   const { deleteItem, updateItem, createItem } = useTypebot()
   const { openedItemId, setOpenedItemId } = useGraph()
   const [itemValue, setItemValue] = useState(
-    item.content ?? t('blocks.inputs.button.clickToEdit.label')
+    item.content ??
+      (indices.itemIndex === 0
+        ? t('blocks.inputs.button.clickToEdit.label')
+        : '')
   )
   const editableRef = useRef<HTMLDivElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
@@ -53,7 +56,8 @@ export const ButtonsItemNode = ({ item, indices, isMouseOver }: Props) => {
   const handleKeyPress = async (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (
       e.key === 'Escape' &&
-      itemValue === t('blocks.inputs.button.clickToEdit.label')
+      (itemValue === t('blocks.inputs.button.clickToEdit.label') ||
+        itemValue === '')
     )
       deleteItem(indices)
     if (
@@ -62,13 +66,18 @@ export const ButtonsItemNode = ({ item, indices, isMouseOver }: Props) => {
       itemValue !== t('blocks.inputs.button.clickToEdit.label')
     )
       handlePlusClick()
-    if (e.key === 'v' && (e.ctrlKey || e.metaKey)) {
-      const clipboardContents = await navigator.clipboard.read()
-      const item = clipboardContents[0]
-      if (!item.types.includes('text/plain')) return
-      const text = await (await item.getType('text/plain')).text()
-      if (!text || !text.includes(',')) return
-      const values = text.split(',')
+  }
+
+  const handleEditableChange = (val: string) => {
+    if (val.length - itemValue.length && val.endsWith('\n')) return
+    const splittedBreakLines = val.split('\n')
+    const splittedCommas = val.split(',')
+    const isPastingMultipleItems =
+      val.length - itemValue.length > 1 &&
+      (splittedBreakLines.length > 2 || splittedCommas.length > 2)
+    if (isPastingMultipleItems) {
+      const values =
+        splittedBreakLines.length > 2 ? splittedBreakLines : splittedCommas
       return values.forEach((v, i) => {
         if (i === 0) {
           setItemValue(v)
@@ -80,6 +89,7 @@ export const ButtonsItemNode = ({ item, indices, isMouseOver }: Props) => {
         }
       })
     }
+    setItemValue(val)
   }
 
   const handlePlusClick = () => {
@@ -103,9 +113,12 @@ export const ButtonsItemNode = ({ item, indices, isMouseOver }: Props) => {
           <Editable
             ref={editableRef}
             flex="1"
-            startWithEditView={isNotDefined(item.content)}
+            startWithEditView={
+              isEmpty(item.content) ||
+              item.content === t('blocks.inputs.button.clickToEdit.label')
+            }
             value={itemValue}
-            onChange={setItemValue}
+            onChange={handleEditableChange}
             onSubmit={handleInputSubmit}
             onKeyDownCapture={handleKeyPress}
             maxW="180px"
@@ -119,7 +132,11 @@ export const ButtonsItemNode = ({ item, indices, isMouseOver }: Props) => {
               }
               cursor="pointer"
             />
-            <EditableInput onMouseDownCapture={(e) => e.stopPropagation()} />
+            <EditableTextarea
+              onMouseDownCapture={(e) => e.stopPropagation()}
+              resize="none"
+              rows={1}
+            />
           </Editable>
           <HitboxExtension />
           <SlideFade

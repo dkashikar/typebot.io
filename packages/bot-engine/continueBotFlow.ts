@@ -357,6 +357,9 @@ const setNewAnswerInState =
 
     return {
       ...state,
+      progressMetadata: state.progressMetadata
+        ? { totalAnswers: state.progressMetadata.totalAnswers + 1 }
+        : undefined,
       typebotsQueue: state.typebotsQueue.map((typebot, index) =>
         index === 0
           ? {
@@ -477,7 +480,11 @@ const parseReply =
             ? { status: 'fail' }
             : { status: 'skip' }
         const urls = reply.split(', ')
-        const status = urls.some((url) => isURL(url)) ? 'success' : 'fail'
+        const status = urls.some((url) =>
+          isURL(url, { require_tld: env.S3_ENDPOINT !== 'localhost' })
+        )
+          ? 'success'
+          : 'fail'
         return { status, reply: reply }
       }
       case InputBlockType.PAYMENT: {
