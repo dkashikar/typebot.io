@@ -5,6 +5,7 @@ export const enabledBlocks = [
   'cal-com',
   'chat-node',
   'qr-code',
+  'razorpay',
   'dify-ai',
   'mistral',
   'elevenlabs',
